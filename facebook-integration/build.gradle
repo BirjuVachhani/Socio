@@ -6,27 +6,26 @@ apply plugin: 'kotlin-kapt'
 android {
     compileSdkVersion 29
     buildToolsVersion "29.0.2"
-
     defaultConfig {
         minSdkVersion 15
         targetSdkVersion 29
         versionCode 1
         versionName "1.0"
-
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles 'consumer-rules.pro'
     }
-
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
-
     compileOptions {
         sourceCompatibility = 1.8
         targetCompatibility = 1.8
+    }
+    kotlinOptions {
+        jvmTarget = 1.8
     }
 }
 
@@ -44,17 +43,17 @@ dependencies {
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.2.0'
 
     // Facebook
-    implementation 'com.facebook.android:facebook-login:5.5.1'
+    api 'com.facebook.android:facebook-login:5.5.1'
 
     // Gson
-    implementation 'com.google.code.gson:gson:2.8.5'
+    implementation 'com.google.code.gson:gson:2.8.6'
 
     // Timber
     implementation 'com.jakewharton.timber:timber:4.7.1'
 
     // Glide
-    implementation 'com.github.bumptech.glide:glide:4.9.0'
-    kapt 'com.github.bumptech.glide:compiler:4.9.0'
+    implementation 'com.github.bumptech.glide:glide:4.10.0'
+    kapt 'com.github.bumptech.glide:compiler:4.10.0'
 
     // Koin
     def koin_version = "2.0.1"
@@ -64,8 +63,9 @@ dependencies {
 
     // Lifecycle
     def lifecycle = "2.1.0"
-    implementation "androidx.lifecycle:lifecycle-viewmodel-ktx:$lifecycle"
-    implementation "androidx.lifecycle:lifecycle-livedata:$lifecycle"
+//    implementation "androidx.lifecycle:lifecycle-viewmodel-ktx:$lifecycle"
+//    implementation "androidx.lifecycle:lifecycle-livedata:$lifecycle"
 //    implementation "androidx.lifecycle:lifecycle-runtime:$lifecycle"
 //    implementation "androidx.lifecycle:lifecycle-extensions:$lifecycle"
+    implementation "androidx.lifecycle:lifecycle-livedata-ktx:2.2.0-alpha05"
 }
