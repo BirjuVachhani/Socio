@@ -15,26 +15,20 @@ import com.facebook.login.widget.LoginButton
  *
  */
 fun LoginButton.setCallback(
-    activity: AppCompatActivity,
-    callback: (LoginState) -> Unit
-) {
+    activity: AppCompatActivity
+): Promise<LoginResult> {
+    val promise = Promise<LoginResult>()
     val loginStateLiveData = MutableLiveData<LoginState>()
-    loginStateLiveData.observe(activity) { loginState ->
-        callback.invoke(loginState)
+    loginStateLiveData.observe(activity) { state ->
+        state?.result?.let(promise.success)
+        state?.exception?.let(promise.failure)
     }
     registerCallback(
         CallbackManager.Factory.create(),
         object : FacebookCallback<LoginResult> {
-            override fun onSuccess(loginResult: LoginResult) {
-                callback.invoke(LoginState.Success(loginResult))
-            }
-
-            override fun onCancel() {
-                callback.invoke(LoginState.Failure(UserCancelledException))
-            }
-
-            override fun onError(e: FacebookException) {
-                callback.invoke(LoginState.Failure(e))
-            }
+            override fun onSuccess(loginResult: LoginResult) = promise.success(loginResult)
+            override fun onCancel() = promise.failure(UserCancelledException)
+            override fun onError(e: FacebookException) = promise.failure(e)
         })
+    return promise
 }
