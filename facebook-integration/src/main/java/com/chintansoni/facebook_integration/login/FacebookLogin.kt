@@ -2,10 +2,13 @@ package com.chintansoni.facebook_integration.login
 
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.observe
+import com.bumptech.glide.util.Util.assertMainThread
+import com.chintansoni.facebook_integration.UserDataPermissions.email
 import com.chintansoni.facebook_integration.UserDataPermissions.public_profile
-import com.chintansoni.facebook_integration.util.ThreadUtil
+import com.chintansoni.facebook_integration.util.Promise
 import com.facebook.AccessToken
 import com.facebook.CallbackManager
 import com.facebook.FacebookCallback
@@ -14,6 +17,8 @@ import com.facebook.login.LoginManager
 import com.facebook.login.LoginResult
 
 object FacebookLogin {
+
+    val commonPermission = listOf(public_profile, email)
 
     private var callbackManager = CallbackManager.Factory.create()
     private var loginManager = LoginManager.getInstance()
@@ -25,74 +30,68 @@ object FacebookLogin {
         return accessToken != null && !accessToken.isExpired
     }
 
-    fun login(
-        activity: AppCompatActivity,
-        permissionList: List<String> = listOf(public_profile),
-        callback: (LoginState) -> Unit = {}
-    ) {
-        login(activity, null, permissionList, callback)
+    fun logout() {
+        loginManager.logOut()
     }
 
     fun login(
+        activity: AppCompatActivity,
+        permissionList: List<String> = commonPermission
+    ): Promise<LoginResult> = login(activity, null, permissionList)
+
+    fun login(
         fragment: Fragment,
-        permissionList: List<String> = listOf(public_profile),
-        callback: (LoginState) -> Unit = {}
-    ) {
-        login(null, fragment, permissionList, callback)
-    }
+        permissionList: List<String> = commonPermission
+    ): Promise<LoginResult> = login(null, fragment, permissionList)
 
     private fun login(
         activity: AppCompatActivity?,
         fragment: Fragment?,
-        permissionList: List<String>,
-        callback: (LoginState) -> Unit = {}
-    ) {
+        permissionList: List<String>
+    ): Promise<LoginResult> {
+        val promise = Promise<LoginResult>()
 
         // Observe LiveData and bind callback
-        registerObserver(activity, fragment, callback)
+        val owner: LifecycleOwner =
+            activity ?: (fragment ?: throw Exception("Activity or Fragment cannot be null"))
+        registerObserver(owner, promise)
+
+        // Assert Mainthread
+        assertMainThread()
 
         // Return if login is already initiated
         if (isInitiated()) {
-            return
+            return promise
         }
-
-        // Set Initiated State
-        setState(LoginState.Initiated)
 
         // Login with read permissions
         loginManager.registerCallback(callbackManager,
             object : FacebookCallback<LoginResult> {
                 override fun onSuccess(loginResult: LoginResult) {
-                    setState(LoginState.Success(loginResult))
+                    setState(LoginState(loginResult))
                 }
 
                 override fun onCancel() {
-                    setState(LoginState.Failure(UserCancelledException))
+                    setState(LoginState(exception = UserCancelledException))
                 }
 
                 override fun onError(e: FacebookException) {
-                    setState(LoginState.Failure(e))
+                    setState(LoginState(exception = e))
                 }
             })
 
         // Login
         loginWithReadPermissions(activity, fragment, permissionList)
+        return promise
     }
 
     private fun registerObserver(
-        activity: AppCompatActivity?,
-        fragment: Fragment?,
-        callback: (LoginState) -> Unit = {}
+        owner: LifecycleOwner,
+        promise: Promise<LoginResult>
     ) {
-        activity?.let {
-            loginStateLiveData.observe(it) { loginState ->
-                callback.invoke(loginState)
-            }
-        }
-        fragment?.let {
-            loginStateLiveData.observe(it) { loginState ->
-                callback.invoke(loginState)
-            }
+        loginStateLiveData.observe(owner) { state ->
+            state?.result?.let(promise.success)
+            state?.exception?.let(promise.failure)
         }
     }
 
@@ -109,19 +108,11 @@ object FacebookLogin {
         }
     }
 
-    fun logout() {
-        loginManager.logOut()
-    }
-
     private fun setState(loginState: LoginState) {
-        if (ThreadUtil.isMainThread()) {
-            loginStateLiveData.value = loginState
-        } else {
-            loginStateLiveData.postValue(loginState)
-        }
+        loginStateLiveData.value = loginState
     }
 
     private fun isInitiated(): Boolean {
-        return loginStateLiveData.value == LoginState.Initiated
+        return loginStateLiveData.value?.isInitiated == true
     }
 }
