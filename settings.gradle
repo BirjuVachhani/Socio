@@ -1,2 +1,2 @@
-include ':app', ':facebook-integration'
+include ':app', ':facebook-integration', ':socio'
 rootProject.name='Socio'
